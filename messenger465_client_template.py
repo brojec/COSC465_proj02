@@ -20,15 +20,15 @@ def mb_checksum(string):
 
 
 class MessageBoardNetwork(object):
-    '''
-    Model class in the MVC pattern.  This class handles
-    the low-level network interactions with the server.
-    It should make GET requests and POST requests (via the
-    respective methods, below) and return the message or
-    response data back to the MessageBoardController class.
-    '''
-    #Carrie
-    def __init__(self, host, port):
+	'''
+	Model class in the MVC pattern.  This class handles
+	the low-level network interactions with the server.
+	It should make GET requests and POST requests (via the
+	respective methods, below) and return the message or
+	response data back to the MessageBoardController class.
+	'''
+	#Carrie
+	def __init__(self, host, port):
 	'''        
 	Constructor.  You should create a new socket
 	here and do any other initialization.
@@ -39,7 +39,7 @@ class MessageBoardNetwork(object):
 	self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 #Carrie & Brett
-    def getMessages(self):
+	def getMessages(self):
 	'''
 	You should make calls to get messages from the message 
 	board server here.
@@ -62,7 +62,7 @@ class MessageBoardNetwork(object):
 	return newlist
 
 #Brett
-    def postMessage(self, user, message):
+	def postMessage(self, user, message):
 	if len(user)>8:
 		raise socket.error('username cannot be more than 8 characters')
 		if len(message)>60:
@@ -81,32 +81,32 @@ class MessageBoardNetwork(object):
 
 
 class MessageBoardController(object):
-    '''
-    Controller class in MVC pattern that coordinates
-    actions in the GUI with sending/retrieving information
-    to/from the server via the MessageBoardNetwork class.
-    '''
+	'''
+	Controller class in MVC pattern that coordinates
+	actions in the GUI with sending/retrieving information
+	to/from the server via the MessageBoardNetwork class.
+	'''
 
-    def __init__(self, myname, host, port):
+	def __init__(self, myname, host, port):
 	self.name = myname
 	self.view = MessageBoardView(myname)
 	self.view.setMessageCallback(self.post_message_callback)
 	self.net = MessageBoardNetwork(host, port)
 
-    def run(self):
+	def run(self):
 	self.view.after(1000, self.retrieve_messages)
 	self.view.mainloop()
 
 #Brett
-    def post_message_callback(self, m):
+	def post_message_callback(self, m):
 	try:
 		self.net.postMessage(myname, m)
 	except socket.error as err:
 		self.view.setStatus(err.message)
 	
 
-    #Carrie
-    def retrieve_messages(self):
+	#Carrie
+	def retrieve_messages(self):
 	'''
 	This method gets called every second for retrieving
 	messages from the server.  It calls the MessageBoardNetwork
@@ -137,12 +137,12 @@ class MessageBoardController(object):
 
 
 class MessageBoardView(Tkinter.Frame):
-    '''
-    The main graphical frame that wraps up the chat app view.
-    This class is completely written for you --- you do not
-    need to modify the below code.
-    '''
-    def __init__(self, name):
+	'''
+	The main graphical frame that wraps up the chat app view.
+	This class is completely written for you --- you do not
+	need to modify the below code.
+	'''
+	def __init__(self, name):
 	self.root = Tkinter.Tk()
 	Tkinter.Frame.__init__(self, self.root)
 	self.root.title('{} @ messenger465'.format(name))
@@ -151,7 +151,7 @@ class MessageBoardView(Tkinter.Frame):
 	self._createWidgets()
 	self.pack()
 
-    def _createWidgets(self):
+	def _createWidgets(self):
 	self.message_list = Tkinter.Listbox(self, width=self.width, height=self.max_messages)
 	self.message_list.pack(anchor="n")
 
@@ -169,14 +169,14 @@ class MessageBoardView(Tkinter.Frame):
 	self.quit.grid(row=1, column=0)
 
 
-    def setMessageCallback(self, messagefn):
+	def setMessageCallback(self, messagefn):
 	'''
 	Set up the callback function when a message is generated 
 	from the GUI.
 	'''
 	self.message_callback = messagefn
 
-    def setListItems(self, mlist):
+	def setListItems(self, mlist):
 	'''
 	mlist is a list of messages (strings) to display in the
 	window.  This method simply replaces the list currently
@@ -185,39 +185,44 @@ class MessageBoardView(Tkinter.Frame):
 	self.message_list.delete(0, self.message_list.size())
 	self.message_list.insert(0, *mlist)
 	
-    def newMessage(self, evt):
+	def newMessage(self, evt):
 	'''Called when user hits entry in message window.  Send message
 	to controller, and clear out the entry'''
 	message = self.entry.get()  
 	if len(message):
-	    self.message_callback(message)
+		self.message_callback(message)
 	self.entry.delete(0, len(self.entry.get()))
 
-    def setStatus(self, message):
+	def setStatus(self, message):
 	'''Set the status message in the window'''
 	self.status['text'] = message
 
-    def end(self):
+	def end(self):
 	'''Callback when window is being destroyed'''
 	self.root.mainloop()
 	try:
-	    self.root.destroy()
+		self.root.destroy()
 	except:
-	    pass
+		pass
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='COSC465 Message Board Client')
-    parser.add_argument('--host', dest='host', type=str, default='localhost',
+	parser = argparse.ArgumentParser(description='COSC465 Message Board Client')
+	parser.add_argument('--host', dest='host', type=str, default='localhost',
 			help='Set the host name for server to send requests to (default: localhost)')
-    parser.add_argument('--port', dest='port', type=int, default=1111,
+	parser.add_argument('--port', dest='port', type=int, default=1111,
 			help='Set the port number for the server (default: 1111)')
-    args = parser.parse_args()
+	parser.add_argument("--retries", dest='retries', type=int, default=3,
+                        help='Set the number of retransmissions in case of a timeout')
+	parser.add_argument("--timeout", dest='timeout', type=float, default=0.1,
+                        help='Set the RTO value')
+                        
+	args = parser.parse_args()
 
-    myname = raw_input("What is your user name (max 8 characters)? ")
+	myname = raw_input("What is your user name (max 8 characters)? ")
 
-    app = MessageBoardController(myname, args.host, args.port)
-    app.run()
+	app = MessageBoardController(myname, args.host, args.port)
+	app.run()
 
 
 
