@@ -27,8 +27,8 @@ class MessageBoardNetwork(object):
 	respective methods, below) and return the message or
 	response data back to the MessageBoardController class.
 	'''
-	#Carrie
-	def __init__(self, host, port):
+	#Carrie & Brett
+	def __init__(self, host, port, retries, timeout):
 		'''        
 		Constructor.  You should create a new socket
 		here and do any other initialization.
@@ -36,23 +36,29 @@ class MessageBoardNetwork(object):
 		'''
 		self.host = host
 		self.port = port
+		self.retries = retries
+		self.timeout = timeout
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.version = 'C'
-		self.timeout = 0.1
 		self.recv = 1400
+		self.seq = 0;
+	
 
-#Carrie & Brett
+	#Carrie & Brett
 	def getMessages(self):
 		'''
 		You should make calls to get messages from the message 
 		board server here.
 		'''
-		self.sock.sendto('AGET', (self.host, self.port))
-		time = select([self.sock], [], [], self.timeout)
-		if time[0] == []:
-			raise socket.error('timeout');
-		else:
-			result = self.sock.recvfrom(self.recv)
+		for i in range(0,self.retries+1):
+			self.sock.sendto(self.version + chr(self.seq) + mb_checksum("GET")+'GET', (self.host, self.port))
+			time = select([self.sock], [], [], self.timeout)
+			if time[0] == [] && i==self.retries:
+				raise socket.error('timeout');
+			else:
+				result = self.sock.recvfrom(self.recv)
+				self.seq = self.seq^1;
+				break;
 		str1 = result[0]
 		returnlist = str1.split('::') #break up by ::
 		str2 = returnlist[0].split(' ') #dividing up first element to see if first part of that is 'OK'
@@ -66,13 +72,16 @@ class MessageBoardNetwork(object):
 
 #Brett
 	def postMessage(self, user, message):
-		time = select([self.sock], [], [], self.timeout)
-		if time[0] == []:
-			raise socket.error('timeout')
-		else:
-			resp = self.sock.recvfrom(self.recv)[0]
-		if len(resp)!=2:
-			raise socket.error(resp)
+		for i in range(0,self.retries+1):
+			self.sock.send(self.version + chr(self.seq) + mb_checksum(message) + "POST " + user +
+				 '::'+ message)
+			time = select([self.sock], [], [], self.timeout)
+			if time[0] == [] && i==self.retries:
+				raise socket.error('timeout')
+			else:
+				resp = self.sock.recvfrom(self.recv)[0]
+			if len(resp)!=2:
+				raise socket.error(resp)
 
 
 
@@ -83,11 +92,11 @@ class MessageBoardController(object):
 	to/from the server via the MessageBoardNetwork class.
 	'''
 
-	def __init__(self, myname, host, port):
+	def __init__(self, myname, host, port, retries, timeout):
 		self.name = myname
 		self.view = MessageBoardView(myname)
 		self.view.setMessageCallback(self.post_message_callback)
-		self.net = MessageBoardNetwork(host, port)
+		self.net = MessageBoardNetwork(host, port, retries, timeout)
 
 	def run(self):
 		self.view.after(1000, self.retrieve_messages)
@@ -226,7 +235,7 @@ if __name__ == '__main__':
 
 	myname = raw_input("What is your user name (max 8 characters)? ")
 
-	app = MessageBoardController(myname, args.host, args.port)
+	app = MessageBoardController(myname, args.host, args.port, args.retries, args.timeout)
 	app.run()
 
 
