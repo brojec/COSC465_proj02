@@ -81,7 +81,8 @@ class MessageBoardNetwork(object):
 #Brett
 	def postMessage(self, user, message):
 		for i in range(0,self.retries+1):
-                        ps = '{0}{1}{2}POST {3}::{4}'.format(self.version, self.seq, mb_checksum(message),user, message)
+                        appdata = 'POST {0}::{1}'.format(user, message)
+                        ps = '{0}{1}{2}{3}'.format(self.version, self.seq, mb_checksum(appdata), appdata)
                         print 'posting message: {0}'.format(ps)
 			self.sock.sendto(ps,(self.host, self.port))
                         time = select([self.sock], [], [], self.timeout)[0]
