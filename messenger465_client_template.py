@@ -51,28 +51,28 @@ class MessageBoardNetwork(object):
 		board server here.
 		'''
 		for i in range(0,self.retries+1):
-			self.sock.sendto(self.version + chr(self.seq) + mb_checksum("GET")+'GET', (self.host, self.port))
-			thetime = select([self.sock], [], [], self.timeout)
+			self.sock.sendto((self.version + str(self.seq) + mb_checksum("GET")+'GET'), (self.host, self.port))
+			thetime = select([self.sock], [], [], self.timeout)[0]
 			if thetime == []: #changed from thetime[0]
 			        if i==self.retries:
-				        print 'get message timeout error'
 				        raise socket.error('timeout');
-				else:
-				        print 'havent timed out, but failed for getmessage'
-				        continue;
 			else:
-			        print 'get message worked.  So yea... got that'
-				result = self.sock.recvfrom(self.recvnum)
-				print 'past self.sock.recvfrom'
+				result = self.sock.recvfrom(self.recvnum)[0]
 				self.seq = self.seq^1; #flipping bit b/w 0 and 1
 				break;
-		print 'out of for loop'
-		str1 = result[0]
-		returnlist = str1.split('::') #break up by ::
-		str2 = returnlist[0].split(' ') #dividing up first element to see if first part of that is 'OK'
-		if(str2[0]!=self.version+'OK'):
-			raise socket.error(' '.join(str2))
-		returnlist[0] = returnlist[0][4:] #getting rid of 'XOK'
+                if result[0] != self.version:
+                    raise socket.error('version mismatch, received {0}'.format(self.version))
+                result = result[1:]
+                if result[0] == self.seq: #seq can only be 1 or 0, and we already flipped it
+                    raise socket.error('sequence mismatch, on sequence {0}, received sequence {1}'.format(self.seq^1, result[0]))
+                result = result[1:]
+                if result[0] != mb_checksum(result[1:]):
+                    raise socket.error('checksum failure')
+                result = result[1:]
+		returnlist = result.split('::') #break up by ::
+		if(returnlist[0][0:2]!='OK'):
+			raise socket.error(returnlist)
+		returnlist[0] = returnlist[0][3:] #getting rid of leading data
 		newlist = []
 		for i in range(0,len(returnlist),3):
 			newlist.append(' '.join(returnlist[i:i+3]))
@@ -81,21 +81,30 @@ class MessageBoardNetwork(object):
 #Brett
 	def postMessage(self, user, message):
 		for i in range(0,self.retries+1):
-			self.sock.send(self.version + chr(self.seq) + mb_checksum(message) + "POST " + user + '::'+ message)
-			time = select([self.sock], [], [], self.timeout)
+                        ps = '{0}{1}{2}POST {3}::{4}'.format(self.version, self.seq, mb_checksum(message),user, message)
+                        print 'posting message: {0}'.format(ps)
+			self.sock.sendto(ps,(self.host, self.port))
+                        time = select([self.sock], [], [], self.timeout)[0]
 			if time == []: #changed from time[0]
 			        if i==self.retries:
 			                print 'entered timeout for post'
 			                raise socket.error('timeout')
-			        else:
-			                print 'post continuing'
-			                continue;
 			else:
 			        print 'received ACK I think...'
 				resp = self.sock.recvfrom(self.recvnum)[0]
-			if len(resp)!=2:
-				raise socket.error(resp)
-
+                                print 'server response to POST: {0}'.format(resp)
+                                self.seq = self.seq^1;
+                                if resp[0] != self.version:
+                                    raise socket.error('version mismatch, received {0}'.format(resp[0]))
+                                resp = resp[1:]
+                                if resp[0] == self.seq:
+                                    raise socket.error('sequence mismatch, received sequence {0}'.format(resp[0]))
+                                resp = resp[1:]
+                                if resp[0] != mb_checksum(resp[1:]):
+                                    raise socket.error('checksum failure')
+                                resp = resp[1:]
+                                if resp[0:2] != "OK":
+                                    raise socket.error(resp)
 
 
 class MessageBoardController(object):
@@ -127,7 +136,8 @@ class MessageBoardController(object):
 			self.view.setStatus("message, username cannot contain '::'");
 			return;
 		try:
-			self.net.postMessage(self.name, m);
+			print 'posting message'
+                        self.net.postMessage(self.name, m);
 		except socket.error as err:
 			self.view.setStatus(err.message);
 	
