@@ -106,6 +106,7 @@ class MessageBoardNetwork(object):
                                 resp = resp[1:]
                                 if resp[0:2] != "OK":
                                     raise socket.error(resp)
+                                break
 
 
 class MessageBoardController(object):
