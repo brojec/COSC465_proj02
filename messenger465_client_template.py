@@ -40,25 +40,33 @@ class MessageBoardNetwork(object):
 		self.timeout = timeout
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.version = 'C'
-		self.recv = 1400
+		self.recvnum = 1400
 		self.seq = 0;
 	
 
 	#Carrie & Brett
 	def getMessages(self):
 		'''
-		You should make calls to get messages from the message 
+	        You should make calls to get messages from the message 
 		board server here.
 		'''
 		for i in range(0,self.retries+1):
 			self.sock.sendto(self.version + chr(self.seq) + mb_checksum("GET")+'GET', (self.host, self.port))
-			time = select([self.sock], [], [], self.timeout)
-			if time[0] == [] && i==self.retries:
-				raise socket.error('timeout');
+			thetime = select([self.sock], [], [], self.timeout)
+			if thetime == []: #changed from thetime[0]
+			        if i==self.retries:
+				        print 'get message timeout error'
+				        raise socket.error('timeout');
+				else:
+				        print 'havent timed out, but failed for getmessage'
+				        continue;
 			else:
-				result = self.sock.recvfrom(self.recv)
-				self.seq = self.seq^1;
+			        print 'get message worked.  So yea... got that'
+				result = self.sock.recvfrom(self.recvnum)
+				print 'past self.sock.recvfrom'
+				self.seq = self.seq^1; #flipping bit b/w 0 and 1
 				break;
+		print 'out of for loop'
 		str1 = result[0]
 		returnlist = str1.split('::') #break up by ::
 		str2 = returnlist[0].split(' ') #dividing up first element to see if first part of that is 'OK'
@@ -73,13 +81,18 @@ class MessageBoardNetwork(object):
 #Brett
 	def postMessage(self, user, message):
 		for i in range(0,self.retries+1):
-			self.sock.send(self.version + chr(self.seq) + mb_checksum(message) + "POST " + user +
-				 '::'+ message)
+			self.sock.send(self.version + chr(self.seq) + mb_checksum(message) + "POST " + user + '::'+ message)
 			time = select([self.sock], [], [], self.timeout)
-			if time[0] == [] && i==self.retries:
-				raise socket.error('timeout')
+			if time == []: #changed from time[0]
+			        if i==self.retries:
+			                print 'entered timeout for post'
+			                raise socket.error('timeout')
+			        else:
+			                print 'post continuing'
+			                continue;
 			else:
-				resp = self.sock.recvfrom(self.recv)[0]
+			        print 'received ACK I think...'
+				resp = self.sock.recvfrom(self.recvnum)[0]
 			if len(resp)!=2:
 				raise socket.error(resp)
 
@@ -121,33 +134,34 @@ class MessageBoardController(object):
 
 	#Carrie
 	def retrieve_messages(self):
-	'''
-	This method gets called every second for retrieving
-	messages from the server.  It calls the MessageBoardNetwork
-	method getMessages() to do the "hard" work of retrieving
-	the messages from the server, then it should call 
-	methods in MessageBoardView to display them in the GUI.
+	        '''
+	        This method gets called every second for retrieving
+	        messages from the server.  It calls the MessageBoardNetwork
+	        method getMessages() to do the "hard" work of retrieving
+	        the messages from the server, then it should call 
+	        methods in MessageBoardView to display them in the GUI.
 
-	You'll need to parse the response data from the server
-	and figure out what should be displayed.
+	        You'll need to parse the response data from the server
+	        and figure out what should be displayed.
 
-	Two relevant methods are (1) self.view.setListItems, which
-	takes a list of strings as input, and displays that 
-	list of strings in the GUI, and (2) self.view.setStatus,
-	which can be used to display any useful status information
-	at the bottom of the GUI.
-	'''
-	'''
-	In getMessages(), we concatonated the strings into groups of
-	"user time message"
-	'''
-	try:
-		alist = self.net.getMessages()
-		self.view.setListItems(alist)
-	except socket.error as err:
-		self.view.setStatus(err.message)
-	self.view.after(1000, self.retrieve_messages)
-	messagedata = self.net.getMessages()
+	        Two relevant methods are (1) self.view.setListItems, which
+	        takes a list of strings as input, and displays that 
+	        list of strings in the GUI, and (2) self.view.setStatus,
+	        which can be used to display any useful status information
+	        at the bottom of the GUI.
+	        '''
+	
+	        '''
+	        In getMessages(), we concatonated the strings into groups of
+	        "user time message"
+	        '''
+	        try:
+		        alist = self.net.getMessages()
+		        self.view.setListItems(alist)
+	        except socket.error as err:
+		        self.view.setStatus(err.message)
+	        self.view.after(1000, self.retrieve_messages)
+	        messagedata = self.net.getMessages()
 
 
 class MessageBoardView(Tkinter.Frame):
